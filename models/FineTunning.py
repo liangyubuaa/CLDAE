@@ -82,7 +82,7 @@ class FineTuner:
         acc = accuracy_score(all_labels, all_preds)
         f1 = f1_score(all_labels, all_preds, average='macro')
         self.scheduler.step(acc)  # 根据验证指标调整学习率
-        return total_loss / len(val_loader)), acc, f1
+        return total_loss / len(val_loader), acc, f1
 
     def fit(self, train_loader, val_loader, epochs=50):
         best_acc = 0
