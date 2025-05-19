@@ -1,6 +1,6 @@
 # SECLER
 
-![architecture](E:\pythonProject\CLDAE\architecture.jpg)
+![architecture](./architecture.jpg)
 
 # Abstract
 
