@@ -4,6 +4,11 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 
+from CLDAE.models.DataAugmentation import contrastive_data_augmentation
+from CLDAE.models.DualAttentionEncoder import Dual_Attention_Encoder
+from CLDAE.modules.PSD import compute_psd
+from CLDAE.modules.loss import compute_total_loss
+
 
 class PreTrainer:
     def __init__(self, model, num_groups, lambda_param=0.5, lr=1e-4):
@@ -15,7 +20,7 @@ class PreTrainer:
         self.projection_head = nn.Sequential(
             nn.Linear(2 * model.num_windows * model.num_channels * model.num_FBs, 256),
             nn.ReLU(),
-            nn.Linear(256, 128)
+            nn.Linear(256, 128))
 
         # 冻结分类器，仅训练编码部分
         for param in self.model.classifier.parameters():
@@ -63,7 +68,7 @@ class PreTrainer:
             # 数据增强生成对比样本
             aug_signals = self._apply_da(raw_signals)  # [2G, C, T, F]
 
-            # 提取PSD特征（假设已预处理）
+            # 提取PSD特征
             psd_features = compute_psd(aug_signals)  # [2G, W, C, F]
 
             # 前向传播
@@ -82,15 +87,6 @@ class PreTrainer:
         self.scheduler.step()
         return total_loss / len(dataloader)
 
-
-# 修改Dual_Attention_Encoder以返回中间特征
-class Dual_Attention_Encoder(nn.Module):
-    def forward(self, psd, return_features=False):
-        # ...（保持原有前向传播）
-
-        if return_features:
-            return inter_out  # 返回特征而非logits
-        return logits
 
 
 # 使用示例

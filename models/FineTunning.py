@@ -4,6 +4,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from sklearn.metrics import accuracy_score, f1_score
 
+from CLDAE.models.DualAttentionEncoder import Dual_Attention_Encoder
+
 
 class FineTuner:
     def __init__(self, pretrained_model, num_classes, freeze_encoder=True, lr=1e-3):
@@ -82,7 +84,7 @@ class FineTuner:
         acc = accuracy_score(all_labels, all_preds)
         f1 = f1_score(all_labels, all_preds, average='macro')
         self.scheduler.step(acc)  # 根据验证指标调整学习率
-        return total_loss / len(val_loader), acc, f1
+        return total_loss / len(val_loader),acc, f1
 
     def fit(self, train_loader, val_loader, epochs=50):
         best_acc = 0
@@ -124,4 +126,4 @@ if __name__ == "__main__":
     val_loader = DataLoader(...)
 
     # 开始微调
-    finetuner.fit(train_loader, val_loader, epochs=60)
+    finetuner.fit(train_loader, val_loader, epochs=180)

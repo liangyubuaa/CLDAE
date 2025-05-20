@@ -1,86 +1,105 @@
-import os
-import glob
 import numpy as np
-import pandas as pd
-from scipy import signal
 import mne
+from scipy import signal
 from mne.preprocessing import ICA
 
-data_folder = ''  # define the path of the data folder
-data_files = glob.glob(os.path.join(data_folder, '*.csv'))
+sfreq=128
+window_duration=0.25
+segment_duration=3
+def compute_psd(aug_signals):
+    """
+    计算增强后EEG信号的功率谱密度(PSD)特征
 
-for data_file in data_files:
-    # load EEG data
-    data = pd.read_csv(data_file, header=0)
-    eeg_channels = data.columns[1:15]
-    eeg_data = data[eeg_channels].values
-    sfreq = 128  # sampling frequency is 128 Hz
+    参数：
+    aug_signals : np.ndarray
+        增强后的EEG信号，形状为 [样本数, 通道数, 时间点]
+    sfreq : int
+        采样频率 (默认128Hz)
+    window_duration : float
+        PSD计算窗口时长 (秒) (默认0.25秒)
+    segment_duration : int
+        数据分段时长 (秒) (默认3秒)
 
-    # crate MNE raw object
-    ch_names = list(eeg_channels)
-    ch_types = ['eeg'] * len(ch_names)
-    info = mne.create_info(ch_names=ch_names, ch_types=ch_types, sfreq=sfreq)
-    raw = mne.io.RawArray(eeg_data.T, info=info)
+    返回：
+    PSDs : np.ndarray
+        PSD特征矩阵，形状为 [总窗口数, 通道数, 频带数]
+    """
 
-    # bandpass filter
-    raw.filter(l_freq=1.0, h_freq=50.0)
+    # 参数计算
+    num_samples, num_channels, num_timepoints = aug_signals.shape
+    window_size = int(sfreq * window_duration)
+    hop_size = window_size  # 无重叠
+    segment_length = int(sfreq * segment_duration)
 
-    # create ICA object and fit it to raw data
-    ica = ICA(n_components=len(eeg_channels), random_state=0, max_iter=1000)  # 调整参数
-    ica.fit(raw)
-
-    # apply ICA to raw data
-    ica.exclude = []
-    ica.apply(raw)
-
-    # get filtered data
-    filtered_data = raw.get_data()
-
-    # define frequency bands
+    # 定义频带
     freq_bands = {
-        # 'delta': (1, 4),
         'theta': (4, 8),
         'alpha': (8, 14),
-        'beta': (14, 31),
-        # 'gamma': (31, 50),
+        'beta': (14, 31)
     }
-
-    # parameters for PSD extraction
-    window_size = int(sfreq * 0.25)  # window size is 0.25 seconds
-    overlap = 0.0  # overlap between consecutive windows is 0.0
-    hop_size = int(window_size * (1 - overlap))
-
-    # one sample is 3 seconds data
-    segment_duration = 3 * sfreq
-    num_segments = int(np.floor(filtered_data.shape[1] / segment_duration))
-
-    num_channels = len(eeg_channels)
-    num_windows_per_segment = int(np.floor((segment_duration - window_size) / hop_size)) + 1
-    num_total_windows = num_windows_per_segment * num_segments
-    print(num_total_windows)
-
     num_freq_bands = len(freq_bands)
-    psd_results = np.zeros((num_total_windows, num_channels * num_freq_bands))
 
-    # extract PSD features
-    window_idx = 0
-    for segment_idx in range(num_segments):
-        start = segment_idx * segment_duration
-        end = start + segment_duration
-        segment_data = filtered_data[:, start:end]
+    # 创建MNE原始数据对象
+    ch_names = [f'EEG{i}' for i in range(num_channels)]
+    ch_types = ['eeg'] * num_channels
+    info = mne.create_info(ch_names=ch_names, ch_types=ch_types, sfreq=sfreq)
 
-        for window_start in range(0, segment_duration - window_size + 1, hop_size):
-            window_end = window_start + window_size
-            eeg_window = segment_data[:, window_start:window_end]
-            # welch PSD
-            frequencies, psd = signal.welch(eeg_window, fs=sfreq, nperseg=window_size)
-            for channel_idx in range(num_channels):
-                for band_idx, (band_name, (f_low, f_high)) in enumerate(freq_bands.items()):
-                    band_mask = np.logical_and(frequencies >= f_low, frequencies <= f_high)
-                    band_psd = psd[channel_idx, band_mask]
-                    PSDs[window_idx, channel_idx * num_freq_bands + band_idx] = np.sum(band_psd)
-                    PSDs = PSDs.reshape(num_total_windows, num_channels, num_freq_bands)
-            window_idx += 1
+    # 预处理管道
+    all_PSDs = []
 
-    # PSDs : (num_total_windows, num_channels, num_fre q_bands)
-    print(PSDs.shape)
+    for sample in aug_signals:
+        # 转换为MNE格式 [通道数, 时间点]
+        raw = mne.io.RawArray(sample, info=info)
+
+        # 带通滤波
+        raw.filter(l_freq=1.0, h_freq=50.0, verbose=False)
+
+        # ICA处理 (可选)
+        # ica = ICA(n_components=num_channels, max_iter=1000, random_state=0)
+        # ica.fit(raw, verbose=False)
+        # ica.apply(raw, verbose=False)
+
+        # 获取滤波后数据
+        filtered_data = raw.get_data()  # [通道数, 时间点]
+
+        # 划分3秒片段
+        num_segments = filtered_data.shape[1] // segment_length
+        PSDs = []
+
+        for seg_idx in range(num_segments):
+            start = seg_idx * segment_length
+            end = start + segment_length
+            segment = filtered_data[:, start:end]
+
+            # 滑动窗口处理
+            num_windows = (segment_length - window_size) // hop_size + 1
+
+            for win_idx in range(num_windows):
+                win_start = win_idx * hop_size
+                win_end = win_start + window_size
+                window_data = segment[:, win_start:win_end]
+
+                # 计算Welch PSD
+                freqs, psd = signal.welch(
+                    window_data,
+                    fs=sfreq,
+                    nperseg=window_size,
+                    axis=1,
+                    scaling='density',
+                    average='mean'
+                )
+
+                # 提取频带能量
+                band_energies = np.zeros((num_channels, num_freq_bands))
+
+                for ch in range(num_channels):
+                    for band_idx, (f_low, f_high) in enumerate(freq_bands.values()):
+                        band_mask = (freqs >= f_low) & (freqs <= f_high)
+                        band_energies[ch, band_idx] = np.sum(psd[ch][band_mask])
+
+                PSDs.append(band_energies)
+
+        all_PSDs.extend(PSDs)
+
+    # 转换为三维数组 [总窗口数, 通道数, 频带数]
+    return np.array(all_PSDs)

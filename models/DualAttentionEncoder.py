@@ -2,7 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
+num_windows =11
+num_channels =14
+num_FBs=3
+num_classes=3
 class Dual_Attention_Encoder(nn.Module):
     def __init__(self, num_windows, num_channels, num_FBs, num_classes,
                  num_heads=8, dim_feedforward=2048, num_layers=6):
@@ -43,7 +46,7 @@ class Dual_Attention_Encoder(nn.Module):
             nn.Linear(2 * num_windows * num_channels * num_FBs, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(512, num_classes)
+            nn.Linear(512, num_classes))
         self.psd_proj = nn.Linear(num_FBs, num_FBs)
 
     def forward(self, psd):
