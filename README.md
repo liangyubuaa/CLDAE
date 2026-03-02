@@ -1,5 +1,9 @@
 # CLDAE
 
+This is an implementation of the DBET method, described in the following paper:
+
+**CLDAE: A Two Stage EEG-based Emotion Recognition Framework Combining Contrastive Learning and Dual-Attention Encoder**
+
 ![architecture](./architecture.jpg)
 
 # Abstract
@@ -10,6 +14,18 @@ A Dual-Attention Encoder, incorporating both temporal and channel attention mech
 ## Requirements
 
 - python 3.8
-- For dependencies，see [requirements.txt](E:\pythonProject\CLDAE\requirements.txt)
-
+- For dependencies，see [requirements.txt](./requirements.txt)
 ## Reference
+
+```
+@ARTICLE{11417405,
+  author={Cao, Rongqi and He, Jian and Liang, Yu and Hu, Xiyuan and Peng, Tianhao and Wu, Wenjun and Niu, Shuang and Mumtaz, Shahid},
+  journal={IEEE Journal of Biomedical and Health Informatics}, 
+  title={CLDAE: A Two Stage EEG-based Emotion Recognition Framework Combining Contrastive Learning and Dual-Attention Encoder}, 
+  year={2026},
+  volume={},
+  number={},
+  pages={1-13},
+  keywords={Electroencephalography;Brain modeling;Emotion recognition;Feature extraction;Adaptation models;Contrastive learning;Transformers;Data models;Accuracy;Training;EEG;Emotion Recognition;Contrastive Learning;Data Augmentation;Dual-attention encoder},
+  doi={10.1109/JBHI.2026.3668381}}
+```
